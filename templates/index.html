@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group-18 : Secure AES-256 Encryption</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Secure AES-256 Encryption</h1>
+            <p>Python Flask Backend with Real File Storage</p>
+        </div>
+        <div class="main-content">
+            <div class="server-info">
+                <h4>Server Information</h4>
+                <p><strong>Backend:</strong> Python Flask Server</p>
+                <p><strong>Storage:</strong> Local JSON file (encrypted_data.json)</p>
+                <p><strong>Encryption:</strong> AES-256-CBC with PBKDF2 key derivation</p>
+                <p><strong>Server URL:</strong> http://localhost:5000</p>
+            </div>
+            <div class="section">
+                <h3>Enter Your Text</h3>
+                <div class="input-group">
+                    <label for="plaintext">Enter text to encrypt:</label>
+                    <textarea id="plaintext" placeholder="Enter secret message here...">This confidential message will be encrypted using AES-256!</textarea>
+                </div>
+                <div class="input-group">
+                    <label for="masterPassword">Master Password:</label>
+                    <input type="password" id="masterPassword" value="SuperSecurePassword123!" placeholder="Enter a strong password">
+                </div>
+                <button class="btn" onclick="encryptText()">🔒 Encrypt Text</button>
+                <button class="btn btn-warning" onclick="clearAllData()">Clear All Data</button>
+            </div>
+            <div class="section">
+                <h3>Encryption Results</h3>
+                <div id="encryptionStatus"></div>
+                <div class="grid">
+                    <div class="input-group">
+                        <label>Encrypted Data:</label>
+                        <div id="encryptedOutput" class="output">No encrypted data yet...</div>
+                    </div>
+                    <div class="input-group">
+                        <label>JSON File Storage:</label>
+                        <div id="jsonStorage" class="json-display">No JSON data yet...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="section">
+                <h3>Brute Force Attack</h3>
+                <div id="bruteForceStatus"></div>
+                <div class="progress-bar">
+                    <div id="bruteForceProgress" class="progress-fill"></div>
+                </div>
+                <button class="btn btn-danger" id="bruteForceBtn" onclick="startBruteForce()">⚔️ Start Brute Force Attack</button>
+                <button class="btn btn-warning" id="stopBruteForceBtn" onclick="stopBruteForce()" style="display: none;">⏹ Stop Attack</button>
+                <div class="input-group">
+                    <label>Attack Log:</label>
+                    <div id="attackLog" class="attack-log">No attack started yet...</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Proper Decryption</h3>
+                <div id="decryptionStatus"></div>
+                <button class="btn btn-success" onclick="decryptText()">🔓 Decrypt with Correct Key</button>
+                <div class="input-group">
+                    <label>Decrypted Text:</label>
+                    <div id="decryptedOutput" class="output">No decrypted data yet...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let bruteForceInterval = null;
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        function showLoading(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status info"><span class="loading"></span>${message}</div>`;
+        }
+        async function encryptText() {
+            const plaintext = document.getElementById('plaintext').value;
+            const password = document.getElementById('masterPassword').value;
+            if (!plaintext.trim()) {
+                showStatus('encryptionStatus', 'Please enter some text to encrypt!', 'error');
+                return;
+            }
+            if (!password.trim()) {
+                showStatus('encryptionStatus', 'Please enter a master password!', 'error');
+                return;
+            }
+            showLoading('encryptionStatus', 'Encrypting text...');
+            try {
+                const response = await fetch('/encrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        plaintext: plaintext,
+                        password: password
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('encryptedOutput').textContent = result.encrypted_data.ciphertext;
+                    document.getElementById('jsonStorage').textContent = JSON.stringify(result.json_storage, null, 2);
+                    showStatus('encryptionStatus', 'Text encrypted successfully using AES-256!', 'success');
+                } else {
+                    showStatus('encryptionStatus', `Encryption failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus('encryptionStatus', `Network error: ${error.message}`, 'error');
+            }
+        }
+        async function startBruteForce() {
+            showLoading('bruteForceStatus', 'Starting brute force attack...');
+            try {
+                const response = await fetch('/brute-force', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('bruteForceBtn').style.display = 'none';
+                    document.getElementById('stopBruteForceBtn').style.display = 'inline-block';
+                    bruteForceInterval = setInterval(updateBruteForceStatus, 500); // if status updates required or not!
+                } else {
+                    showStatus('bruteForceStatus', `${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus('bruteForceStatus', `Network error: ${error.message}`, 'error');
+            }
+        }
+        async function stopBruteForce() {
+            try {
+                await fetch('/brute-force/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (bruteForceInterval) {
+                    clearInterval(bruteForceInterval);
+                    bruteForceInterval = null;
+                }
+
+                document.getElementById('bruteForceBtn').style.display = 'inline-block';
+                document.getElementById('stopBruteForceBtn').style.display = 'none';
+                showStatus('bruteForceStatus', 'Brute force attack has been stopped', 'info');
+            } catch (error) {
+                showStatus('bruteForceStatus', `Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function updateBruteForceStatus() {
+            try {
+                const response = await fetch('/brute-force/status');
+                const status = await response.json();
+                document.getElementById('bruteForceProgress').style.width = status.progress + '%';
+
+
+                // Update status message
+                if (status.running) {
+                    showStatus('bruteForceStatus', `Brute force attack in progress... ${status.progress.toFixed(1)}%`, 'info');
+                } else if (status.progress > 0) {
+                    // Attack completed
+                    if (bruteForceInterval) {
+                        clearInterval(bruteForceInterval);
+                        bruteForceInterval = null;
+                    }
+                    document.getElementById('bruteForceBtn').style.display = 'inline-block';
+                    document.getElementById('stopBruteForceBtn').style.display = 'none';
+                    showStatus('bruteForceStatus', 'Brute force attack completed & AES-256 remains secure!', 'success');
+                }
+            } catch (error) {
+                console.error('Error updating brute force status:', error);
+            }
+        }
+
+        async function decryptText() {
+            showLoading('decryptionStatus', 'Decrypting text...');
+
+            try {
+                const response = await fetch('/decrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('decryptedOutput').textContent = result.plaintext;
+                    showStatus('decryptionStatus', 'Text decrypted successfully!', 'success');
+                } else {
+                    showStatus('decryptionStatus', `Decryption failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus('decryptionStatus', `Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function clearAllData() {
+            if (confirm('Proceed to clear all Data!')) {
+                try {
+                    const response = await fetch('/clear', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        document.getElementById('encryptedOutput').textContent = 'No encrypted data yet...';
+                        document.getElementById('jsonStorage').textContent = 'No JSON data yet...';
+                        document.getElementById('attackLog').textContent = 'No attack started yet...';
+                        document.getElementById('decryptedOutput').textContent = 'No decrypted data yet...';
+                        document.getElementById('bruteForceProgress').style.width = '0%';
+                        
+                        // Clear all status messages
+                        document.getElementById('encryptionStatus').innerHTML = '';
+                        document.getElementById('bruteForceStatus').innerHTML = '';
+                        document.getElementById('decryptionStatus').innerHTML = '';
+                        
+                        document.getElementById('bruteForceBtn').style.display = 'inline-block';  // i have to reset brute force buttons
+                        document.getElementById('stopBruteForceBtn').style.display = 'none'; // else, the backend won't response me.
+                        
+                        if (bruteForceInterval) {
+                            clearInterval(bruteForceInterval);
+                            bruteForceInterval = null;
+                        }
+                        
+                        showStatus('encryptionStatus', 'All data cleared successfully!', 'success');
+                    } else {
+                        showStatus('encryptionStatus', `Clear failed: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    showStatus('encryptionStatus', `Network error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        window.addEventListener('load', async function() { // server connection showing issues...
+            try {
+                const response = await fetch('/storage');
+                if (response.ok) {
+                    showStatus('encryptionStatus', 'Connected to Python Flask backend!', 'success');
+                } else {
+                    showStatus('encryptionStatus', 'Server connection failed. Make sure Flask server is running.', 'error');
+                }
+            } catch (error) {
+                showStatus('encryptionStatus', 'Cannot connect to server. Please start the Flask application.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
